@@ -1,0 +1,43 @@
+# Install required libraries
+!pip install transformers gradio --quiet
+
+# Import libraries
+import gradio as gr
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+# Load GPT-2 model and tokenizer
+model_name = "gpt2-medium"  # you can choose "gpt2" or "gpt2-small" if needed
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
+
+# Define summarization function
+def summarize_text(input_text):
+    if not input_text.strip():
+        return "Please enter some text."
+    # Encode input text
+    inputs = tokenizer.encode(input_text, return_tensors="pt")
+    # Generate summary text
+    summary_ids = model.generate(
+        inputs,
+        max_length=150,
+        num_return_sequences=1,
+        no_repeat_ngram_size=2,
+        do_sample=True,
+        top_p=0.95,
+        top_k=60
+    )
+    # Decode to readable text
+    summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+    return summary
+
+# Create Gradio interface
+interface = gr.Interface(
+    fn=summarize_text,
+    inputs=gr.Textbox(lines=10, placeholder="Enter text to summarize here..."),
+    outputs="text",
+    title="GPT-2 Text Summarizer",
+    description="Enter your text and get a summary using a pre-trained GPT-2 model."
+)
+
+# Launch the interface
+interface.launch()

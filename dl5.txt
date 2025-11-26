@@ -1,0 +1,60 @@
+# Step 1: Import Libraries
+import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow.keras.datasets import boston_housing
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.optimizers import Adam
+from sklearn.model_selection import KFold
+
+# Step 2: Load Boston Housing Data
+(x_train, y_train), (x_test, y_test) = boston_housing.load_data()
+# Step 3: Normalize Input Features
+mean = x_train.mean(axis=0)
+std = x_train.std(axis=0)
+x_train = (x_train - mean) / std
+x_test = (x_test - mean) / std
+
+# Step 4: Function to Build Neural Network
+def build_model():
+model = Sequential([
+Dense(64, activation='relu', input_shape=(x_train.shape[1],)),
+Dense(64, activation='relu'),
+Dense(1)
+])
+
+model.compile(optimizer=Adam(learning_rate=0.001),
+loss='mse',
+metrics=['mae'])
+return model
+
+# Step 5: K-Fold Validation
+k = 5
+kf = KFold(n_splits=k, shuffle=True, random_state=42)
+val_mae_scores = []
+for train_index, val_index in kf.split(x_train):
+x_tr, x_val = x_train[train_index], x_train[val_index]
+y_tr, y_val = y_train[train_index], y_train[val_index]
+model = build_model()
+history = model.fit(x_tr, y_tr,
+epochs=100,
+batch_size=16,
+verbose=0,
+validation_data=(x_val, y_val))
+val_mae = history.history['val_mae'][-1] # last epoch validation MAE
+val_mae_scores.append(val_mae)
+
+# Step 6: Mean and History of K-Fold Scores
+print(f"Validation MAE scores for each fold: {val_mae_scores}")
+print(f"Mean Validation MAE: {np.mean(val_mae_scores):.3f}")
+
+# Step 7: Plot Validation Scores
+plt.figure(figsize=(8,5))
+plt.plot(range(1, k+1), val_mae_scores, marker='o')
+plt.title('Validation MAE for each K-Fold')
+plt.xlabel('Fold')
+plt.ylabel('Validation MAE')
+plt.xticks(range(1, k+1))
+plt.grid(True)
+plt.show()
+

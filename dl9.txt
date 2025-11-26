@@ -1,0 +1,35 @@
+# Step 1: Download News Article
+!pip install newspaper3k gensim tensorflow nltk
+
+!pip install lxml_html_clean
+
+from newspaper import Article
+url = 'https://marathi.abplive.com/your-article-url' # replace with your article
+article = Article(url)
+article.download()
+article.parse()
+text = article.text
+
+import nltk
+nltk.download('punkt')
+
+# Set download directory
+nltk_data_path = '/root/nltk_data'
+nltk.data.path.append(nltk_data_path)
+# Download both punkt and punkt_tab
+nltk.download('punkt', download_dir=nltk_data_path)
+nltk.download('punkt_tab', download_dir=nltk_data_path)
+
+
+import re
+from nltk.tokenize import word_tokenize
+def preprocess(text):
+text = text.lower() # lowercase
+text = re.sub(r'http\S+', '', text) # remove URLs
+text = re.sub(r'@\w+', '', text) # remove mentions
+text = re.sub(r'#\w+', '', text) # remove hashtags
+text = re.sub(r'[^a-zA-Z\s]', '', text) # remove special characters
+tokens = word_tokenize(text)
+return tokens
+tokens = preprocess(text)
+print("First 20 tokens:", tokens[:20])

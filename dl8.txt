@@ -1,0 +1,55 @@
+from google.colab import files
+import zipfile, os, pandas as pd
+
+# Upload your Kaggle ZIP (archive.zip)
+uploaded = files.upload()
+
+with zipfile.ZipFile("archive (1).zip", "r") as zip_ref:
+zip_ref.extractall("twitter_dataset")
+
+# Check extracted files
+os.listdir("twitter_dataset")
+
+df = pd.read_csv("twitter_dataset/Twitter_Data.csv")
+print(df.shape)
+print(df.columns)
+df.head()
+
+import re
+def clean_text(text):
+text = str(text).lower()
+text = re.sub(r"http\S+|www\S+|https\S+", '', text)
+text = re.sub(r'\@\w+|\#', '', text)
+text = re.sub(r'[^A-Za-z0-9\s]', ' ', text)
+text = re.sub(r'\s+', ' ', text).strip()
+return text
+df['clean_text'] = df['clean_text'].apply(clean_text)
+df.head()
+
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from sklearn.model_selection import train_test_split
+import numpy as np
+max_words = 10000
+max_len = 100
+tokenizer = Tokenizer(num_words=max_words)
+tokenizer.fit_on_texts(df['clean_text'])
+sequences = tokenizer.texts_to_sequences(df['clean_text'])
+x_data = pad_sequences(sequences, maxlen=max_len)
+y_data = np.array(df['category'])
+x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=0.2, random_state=42)
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, SimpleRNN, Dense
+model = Sequential([
+Embedding(input_dim=max_words, output_dim=64, input_length=max_len),
+SimpleRNN(64, activation='tanh'),
+Dense(1, activation='tanh') # output: -1, 0, or 1
+])
+
+model.compile(optimizer='adam', loss='mse', metrics=['accuracy'])
+model.summary()
+
+import matplotlib.pyplot as plt
+test_loss, test_acc = model.evaluate(x_test, y_test)
+print(f"\n Test accuracy: {test_acc:.4f}")
