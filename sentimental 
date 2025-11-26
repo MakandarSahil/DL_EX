@@ -1,0 +1,82 @@
+from google.colab import files
+import zipfile, os, pandas as pd
+import numpy as np
+import re
+
+# Upload your ZIP file downloaded from Kaggle
+uploaded = files.upload()
+
+# Extract
+with zipfile.ZipFile("archive.zip", "r") as zip_ref:
+    zip_ref.extractall("archive")
+
+# View extracted files
+print(os.listdir("archive"))
+
+# Load dataset
+df = pd.read_csv("archive/IMDB Dataset.csv")
+print(df.head())
+print(df.columns)
+print(df.shape)
+
+
+# -------- TEXT CLEANING ---------- #
+def clean_text(text):
+    text = str(text).lower()
+    text = re.sub(r"http\S+|www\S+|https\S+", '', text) 
+    text = re.sub(r'\@\w+|\#', '', text) 
+    text = re.sub(r'[^A-Za-z0-9\s]', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+df["clean_text"] = df["review"].apply(clean_text)
+
+
+# -------- LABEL ENCODING ---------- #
+df["label"] = df["sentiment"].map({"negative": 0, "positive": 1})
+
+
+# -------- TOKENIZATION ---------- #
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+max_words = 10000
+max_len = 100
+
+tokenizer = Tokenizer(num_words=max_words)
+tokenizer.fit_on_texts(df["clean_text"])
+
+sequences = tokenizer.texts_to_sequences(df["clean_text"])
+x_data = pad_sequences(sequences, maxlen=max_len)
+y_data = df["label"].values
+
+
+# -------- TRAIN/TEST SPLIT ---------- #
+from sklearn.model_selection import train_test_split
+
+x_train, x_test, y_train, y_test = train_test_split(
+    x_data, y_data, test_size=0.2, random_state=42
+)
+
+
+# -------- RNN MODEL ---------- #
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, SimpleRNN, Dense
+
+model = Sequential([
+    Embedding(input_dim=max_words, output_dim=64, input_length=max_len),
+    SimpleRNN(64, activation='tanh'),
+    Dense(1, activation='sigmoid')  # binary classification
+])
+
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.summary()
+
+
+# -------- TRAIN ---------- #
+history = model.fit(x_train, y_train, epochs=5, batch_size=64, validation_split=0.2)
+
+
+# -------- TEST ACCURACY ---------- #
+test_loss, test_acc = model.evaluate(x_test, y_test)
+print("\nTest accuracy:", test_acc)
